@@ -245,10 +245,12 @@ fn on_event(e &gg.Event, mut app App) {
 						app.v.l_out[app.selected_i] = -1
 					} else {
 						if app.v.p_input[p_i] {
+							app.v.p_link[p_i] = app.selected_i
 							app.v.l_end_x[app.selected_i] = app.v.p_x[p_i]
 							app.v.l_end_y[app.selected_i] = app.v.p_y[p_i]
 							app.v.l_out[app.selected_i] = p_i
 						} else {
+							app.v.p_link[p_i] = app.selected_i
 							app.v.l_start_x[app.selected_i] = app.v.p_x[p_i]
 							app.v.l_start_y[app.selected_i] = app.v.p_y[p_i]
 							app.v.l_inp[app.selected_i] = p_i
