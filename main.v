@@ -2,6 +2,8 @@ import gg
 
 struct View {
 mut:
+	radius f32 = 5.0
+	input_spacing f32 = 15.0
 	// blocks
 	b_x []f32
 	b_y []f32
@@ -25,6 +27,8 @@ mut:
 	l_end_y []f32
 }
 
+fn (mut v View) new_block(name string, x f32, y f32, inputs []string, outputs []string)
+
 // is the position in the radius
 // returns the first that validates the condition
 fn (v View) which_port_is_clicked(x f32, y f32, r f32) int {
@@ -32,6 +36,15 @@ fn (v View) which_port_is_clicked(x f32, y f32, r f32) int {
 		dx := v.p_x[i] - x
 		dy := v.p_y[i] - y
 		if dx * dx + dy * dy < r * r { 
+			return i
+		}
+	}
+	return -1
+}
+
+fn (v View) which_block_is_clicked(x f32, y f32) int {
+	for i in 0 .. v.b_x.len {
+		if x >= v.b_x[i] && x < v.b_x[i] + v.b_w[i] && y >= v.b_y[i] && y < v.b_y[i] + v.b_h[i] { 
 			return i
 		}
 	}
@@ -51,8 +64,6 @@ struct App {
 	l_start bool // is the input or the output of the link is selected
 	b_dx f32 // offset from block_x to mouse click_x
 	b_dy f32
-	r f32 = 5
-	input_spacing f32 = 15
 	v View
 }
 
@@ -151,7 +162,25 @@ fn on_event(e &gg.Event, mut app App) {
 		.mouse_up {
 			if app.selected_i != -1 {
 				if app.selected_variant == .list {
-					
+					p_i := app.v.which_port_is_clicked(e.mouse_x, e.mouse_y, app.v.radius) 
+					if p_i == -1 {
+						app.l_end_x[selected_i] = -1.0
+						app.l_end_y[selected_i] = -1.0
+						app.l_start_x[selected_i] = -1.0
+						app.l_start_y[selected_i] = -1.0
+						app.l_inp[selected_i] = -1
+						app.l_out[selected_i] = -1
+					} else {
+						if app.p_input[p_i] {
+							app.l_end_x[selected_i] = app.p_x[p_i]
+							app.l_end_y[selected_i] = app.p_y[p_i]
+							app.l_out[selected_i] = p_i
+						} else {
+							app.l_start_x[selected_i] = app.p_x[p_i]
+							app.l_start_y[selected_i] = app.p_y[p_i]
+							app.l_inp[selected_i] = p_i
+						}
+					}
 				} else if app.selected_variant == .block {
 					app.v.b_x[app.selected_i] = e.mouse_x - app.b_dx
 					app.v.b_y[app.selected_i] = e.mouse_y - app.b_dy 
@@ -176,12 +205,15 @@ fn on_event(e &gg.Event, mut app App) {
 }
 
 fn on_frame(mut app App) {
+	cfg := gg.TextCfg{align: center, vertical_align: middle}
 	app.ctx.begin()
 	for i in 0 .. app.v.b_x.len {
 		app.ctx.draw_rect_filled(app.v.b_x[i], app.v.b_y[i], app.v.b_w[i], app.v.b_h[i], gg.blue)
+		app.ctx.draw_text(app.v.b_x[i] + app.v.b_w[i]/2, app.v.b_y[i] + app.v.b_h[i]/2, app.v.b_name[i], cfg)
 	}	
 	for i in 0 .. app.v.p_x.len {
 		app.ctx.draw_circle_filled(app.v.p_x[i], app.v.p_y[i], app.v.radius, gg.light_gray)
+		app.ctx.draw_text(app.v.p_x[i], app.v.p_y[i], app.v.p_name[i], cfg)
 	}
 	for i in 0 .. app.v.l_start_x.len {
 		app.ctx.draw_line(app.v.l_start_x[i], app.v.l_start_y[i], app.v.l_end_x[i], app.v.l_end_y[i], gg.black)
