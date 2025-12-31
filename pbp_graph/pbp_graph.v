@@ -187,12 +187,15 @@ pub fn (v View) draw(ctx &gg.Context, mouse_x f32, mouse_y f32, cfg gg.TextCfg) 
 pub fn (mut v View) events(e &gg.Event) {
 	match e.typ {
 		.mouse_move {
-			if v.mouse_clicked && v.selected_i != -1 {
+			if v.mouse_clicked && !is_none(v.selected_i) {
 				if v.selected_variant == .link {
 					p_i := v.which_port_is_clicked(e.mouse_x, e.mouse_y)
 					// move already selected link
 					if v.l_start {
-						if p_i != -1 {
+						if is_none(p_i) {
+							v.l_start_x[v.selected_i] = e.mouse_x
+							v.l_start_y[v.selected_i] = e.mouse_y
+						} else {
 							if !v.p_input[p_i] {
 								v.l_start_x[v.selected_i] = v.p_x[p_i]
 								v.l_start_y[v.selected_i] = v.p_y[p_i]
@@ -200,12 +203,12 @@ pub fn (mut v View) events(e &gg.Event) {
 								v.l_start_x[v.selected_i] = e.mouse_x
 								v.l_start_y[v.selected_i] = e.mouse_y
 							}
-						} else {
-							v.l_start_x[v.selected_i] = e.mouse_x
-							v.l_start_y[v.selected_i] = e.mouse_y
 						}
 					} else {
-						if p_i != -1 {
+						if is_none(p_i) {
+							v.l_end_x[v.selected_i] = e.mouse_x
+							v.l_end_y[v.selected_i] = e.mouse_y
+						} else {
 							if v.p_input[p_i] {
 								v.l_end_x[v.selected_i] = v.p_x[p_i]
 								v.l_end_y[v.selected_i] = v.p_y[p_i]
@@ -213,9 +216,6 @@ pub fn (mut v View) events(e &gg.Event) {
 								v.l_end_x[v.selected_i] = e.mouse_x
 								v.l_end_y[v.selected_i] = e.mouse_y
 							}
-						} else {
-							v.l_end_x[v.selected_i] = e.mouse_x
-							v.l_end_y[v.selected_i] = e.mouse_y
 						}
 					}
 				} else if v.selected_variant == .block {
@@ -241,34 +241,10 @@ pub fn (mut v View) events(e &gg.Event) {
 			}
 		}
 		.mouse_down {
-			if v.selected_i == -1 {
+			if is_none(v.selected_i) {
 				v.mouse_clicked = true
 				p_i := v.which_port_is_clicked(e.mouse_x, e.mouse_y)
-				if p_i != -1 {
-					// new link or select link
-					v.selected_variant = .link
-					// create link
-					v.p_link[p_i] << v.l_inp.len
-					v.selected_i = v.l_inp.len
-					if v.p_input[p_i] {
-						// we need an input for the link as the input for the block is the output for the link
-						v.l_start = true
-						v.l_out << p_i
-						v.l_inp << -1
-						v.l_end_x << v.p_x[p_i]
-						v.l_end_y << v.p_y[p_i]
-						v.l_start_x << e.mouse_x
-						v.l_start_y << e.mouse_y
-					} else {
-						v.l_start = false
-						v.l_inp << p_i
-						v.l_out << -1
-						v.l_start_x << v.p_x[p_i]
-						v.l_start_y << v.p_y[p_i]
-						v.l_end_x << e.mouse_x
-						v.l_end_y << e.mouse_y
-					}
-				} else {
+				if is_none(p_i) {
 					l_i := v.which_link_is_clicked(e.mouse_x, e.mouse_y)
 					if l_i != -1 {
 						// select link
@@ -309,7 +285,7 @@ pub fn (mut v View) events(e &gg.Event) {
 						}
 					} else {
 						b_i := v.which_block_is_clicked(e.mouse_x, e.mouse_y)
-						if b_i != -1 {
+						if !is_none(b_i) {
 							// select block
 							v.selected_variant = .block
 							v.selected_i = b_i
@@ -317,12 +293,36 @@ pub fn (mut v View) events(e &gg.Event) {
 							v.b_dy = e.mouse_y - v.b_y[b_i]
 						}
 					}
+				} else {
+					// new link or select link
+					v.selected_variant = .link
+					// create link
+					v.p_link[p_i] << v.l_inp.len
+					v.selected_i = v.l_inp.len
+					if v.p_input[p_i] {
+						// we need an input for the link as the input for the block is the output for the link
+						v.l_start = true
+						v.l_out << p_i
+						v.l_inp << -1
+						v.l_end_x << v.p_x[p_i]
+						v.l_end_y << v.p_y[p_i]
+						v.l_start_x << e.mouse_x
+						v.l_start_y << e.mouse_y
+					} else {
+						v.l_start = false
+						v.l_inp << p_i
+						v.l_out << -1
+						v.l_start_x << v.p_x[p_i]
+						v.l_start_y << v.p_y[p_i]
+						v.l_end_x << e.mouse_x
+						v.l_end_y << e.mouse_y
+					}
 				}
 			}
 		}
 		.mouse_up {
 			v.mouse_clicked = false
-			if v.selected_i != -1 {
+			if !is_none(v.selected_i) {
 				if v.selected_variant == .link {
 					p_i := v.which_port_is_clicked(e.mouse_x, e.mouse_y)
 					if p_i == -1 || p_i == v.l_out[v.selected_i]
