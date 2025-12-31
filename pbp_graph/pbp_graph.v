@@ -140,13 +140,14 @@ pub fn (v View) draw(ctx &gg.Context, mouse_x f32, mouse_y f32, selected_i int, 
 			v.b_h[selected_i], gg.dark_blue)
 		ctx.draw_text(int(v.b_x[selected_i] + v.b_w[selected_i] / 2), int(v.b_y[selected_i] +
 			v.b_h[selected_i] / 2), v.b_name[selected_i], cfg)
-	}
-	if is_none(p_i) && is_none(l_i) && !is_a_link_selected(selected_variant, selected_i) {
-		b_i := v.which_block_is_clicked(mouse_x, mouse_y)
-		if !is_none(b_i) {
-			ctx.draw_rect_filled(v.b_x[b_i], v.b_y[b_i], v.b_w[b_i], v.b_h[b_i], gg.dark_blue)
-			ctx.draw_text(int(v.b_x[b_i] + v.b_w[b_i] / 2), int(v.b_y[b_i] + v.b_h[b_i] / 2),
-				v.b_name[b_i], cfg)
+	} else {
+		if is_none(p_i) && is_none(l_i) && !is_a_link_selected(selected_variant, selected_i) {
+			b_i := v.which_block_is_clicked(mouse_x, mouse_y)
+			if !is_none(b_i) {
+				ctx.draw_rect_filled(v.b_x[b_i], v.b_y[b_i], v.b_w[b_i], v.b_h[b_i], gg.dark_blue)
+				ctx.draw_text(int(v.b_x[b_i] + v.b_w[b_i] / 2), int(v.b_y[b_i] + v.b_h[b_i] / 2),
+					v.b_name[b_i], cfg)
+			}
 		}
 	}
 	for i in 0 .. v.p_x.len {
@@ -154,7 +155,8 @@ pub fn (v View) draw(ctx &gg.Context, mouse_x f32, mouse_y f32, selected_i int, 
 		ctx.draw_text(int(v.p_x[i]), int(v.p_y[i]), v.p_name[i], cfg)
 	}
 	if !is_none(p_i) && !is_a_block_selected(selected_variant, selected_i)
-		&& !is_a_link_selected(selected_variant, selected_i) && l_start == v.p_input[p_i] { // if it is the side it can connect to
+		&& (!is_a_link_selected(selected_variant, selected_i)
+		|| l_start != v.p_input[p_i]) { // if it is the side it can connect to
 		ctx.draw_circle_filled(v.p_x[p_i], v.p_y[p_i], v.radius, gg.dark_gray)
 		ctx.draw_text(int(v.p_x[p_i]), int(v.p_y[p_i]), v.p_name[p_i], cfg)
 	}
@@ -164,14 +166,15 @@ pub fn (v View) draw(ctx &gg.Context, mouse_x f32, mouse_y f32, selected_i int, 
 				gg.black)
 		}
 	}
-	if is_none(p_i) && (!is_none(l_i) || is_a_link_selected(selected_variant, selected_i))
-		&& !is_a_block_selected(selected_variant, selected_i) {
-		if selected_i != -1 {
+	if !is_a_block_selected(selected_variant, selected_i) {
+		if is_a_link_selected(selected_variant, selected_i) {
 			ctx.draw_line(v.l_start_x[selected_i], v.l_start_y[selected_i], v.l_end_x[selected_i],
 				v.l_end_y[selected_i], gg.red)
 		} else {
-			ctx.draw_line(v.l_start_x[l_i], v.l_start_y[l_i], v.l_end_x[l_i], v.l_end_y[l_i],
-				gg.red)
+			if is_none(p_i) && !is_none(l_i) {
+				ctx.draw_line(v.l_start_x[l_i], v.l_start_y[l_i], v.l_end_x[l_i], v.l_end_y[l_i],
+					gg.red)
+			}
 		}
 	}
 }
