@@ -99,6 +99,8 @@ mut:
 	b_dy             f32
 	v                View
 	mouse_clicked    bool
+	mouse_x          f32
+	mouse_y          f32
 }
 
 fn main() {
@@ -118,6 +120,8 @@ fn main() {
 }
 
 fn on_event(e &gg.Event, mut app App) {
+	app.mouse_x = e.mouse_x
+	app.mouse_y = e.mouse_y
 	match e.typ {
 		.mouse_move {
 			if app.mouse_clicked && app.selected_i != -1 {
@@ -291,6 +295,7 @@ fn on_frame(mut app App) {
 		vertical_align: .middle
 		size:           int(app.v.char_x) * 2
 	}
+	p_i := app.v.which_port_is_clicked(app.mouse_x, app.mouse_y, app.v.radius)
 	app.ctx.begin()
 	for i in 0 .. app.v.b_x.len {
 		app.ctx.draw_rect_filled(app.v.b_x[i], app.v.b_y[i], app.v.b_w[i], app.v.b_h[i],
@@ -298,9 +303,23 @@ fn on_frame(mut app App) {
 		app.ctx.draw_text(int(app.v.b_x[i] + app.v.b_w[i] / 2), int(app.v.b_y[i] + app.v.b_h[i] / 2),
 			app.v.b_name[i], cfg)
 	}
+	if p_i == -1 {
+		b_i := app.v.which_block_is_clicked(app.mouse_x, app.mouse_y)
+		if b_i != -1 {
+			app.ctx.draw_rect_filled(app.v.b_x[b_i], app.v.b_y[b_i], app.v.b_w[b_i], app.v.b_h[b_i],
+				gg.dark_blue)
+			app.ctx.draw_text(int(app.v.b_x[b_i] + app.v.b_w[b_i] / 2), int(app.v.b_y[b_i] +
+				app.v.b_h[b_i] / 2), app.v.b_name[b_i], cfg)
+		}
+	}
 	for i in 0 .. app.v.p_x.len {
 		app.ctx.draw_circle_filled(app.v.p_x[i], app.v.p_y[i], app.v.radius, gg.light_gray)
 		app.ctx.draw_text(int(app.v.p_x[i]), int(app.v.p_y[i]), app.v.p_name[i], cfg)
+	}
+	if p_i != -1 {
+		app.ctx.draw_circle_filled(app.v.p_x[p_i], app.v.p_y[p_i], app.v.radius, gg.dark_gray)
+		app.ctx.draw_text(int(app.v.p_x[p_i]), int(app.v.p_y[p_i]), app.v.p_name[p_i],
+			cfg)
 	}
 	for i in 0 .. app.v.l_start_x.len {
 		if app.v.l_start_x[i] >= 0.0 {
