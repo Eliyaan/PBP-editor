@@ -1,5 +1,6 @@
 import gg
 import pbp_graph as pg
+import pbp_g2c as g2c
 
 // TODO: add a way to duplicate a block -> change g2c because the structs will have the same name
 
@@ -26,6 +27,7 @@ fn main() {
 	app.v.new_block('very long string', 320.0, 154.0, ['string'], ['[]f32', 'string', 'int'])
 
 	app.ctx.run()
+	println(g2c.generate_code(app.v))
 }
 
 fn on_event(e &gg.Event, mut app App) {
