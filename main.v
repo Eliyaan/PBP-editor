@@ -19,8 +19,8 @@ mut:
 	p_y     []f32
 	p_input []bool // is input or output
 	p_name  []string
-	p_block []int // index of block
-	p_link  []int // index of link
+	p_block []int   // index of block
+	p_link  [][]int // index of link
 	// links
 	l_inp     []int // index of the input port
 	l_out     []int
@@ -69,7 +69,7 @@ fn (mut v View) new_block(name string, x f32, y f32, inputs []string, outputs []
 		v.p_input << true
 		v.p_name << inp
 		v.p_block << i
-		v.p_link << -1
+		v.p_link << [[]]
 	}
 	v.b_inps << inps
 	for j, out in outputs {
@@ -79,7 +79,7 @@ fn (mut v View) new_block(name string, x f32, y f32, inputs []string, outputs []
 		v.p_input << false
 		v.p_name << out
 		v.p_block << i
-		v.p_link << -1
+		v.p_link << [[]]
 	}
 	v.b_outs << outs
 }
@@ -185,18 +185,18 @@ fn on_event(e &gg.Event, mut app App) {
 						app.v.p_x[idx] = app.v.b_x[app.selected_i]
 						app.v.p_y[idx] = app.v.b_y[app.selected_i] + i * app.v.input_spacing +
 							app.v.input_spacing / 2
-						if app.v.p_link[idx] != -1 {
-							app.v.l_end_x[app.v.p_link[idx]] = app.v.p_x[idx]
-							app.v.l_end_y[app.v.p_link[idx]] = app.v.p_y[idx]
+						for l in app.v.p_link[idx] {
+							app.v.l_end_x[l] = app.v.p_x[idx]
+							app.v.l_end_y[l] = app.v.p_y[idx]
 						}
 					}
 					for i, idx in app.v.b_outs[app.selected_i] {
 						app.v.p_x[idx] = app.v.b_x[app.selected_i] + app.v.b_w[app.selected_i]
 						app.v.p_y[idx] = app.v.b_y[app.selected_i] + i * app.v.input_spacing +
 							app.v.input_spacing / 2
-						if app.v.p_link[idx] != -1 {
-							app.v.l_start_x[app.v.p_link[idx]] = app.v.p_x[idx]
-							app.v.l_start_y[app.v.p_link[idx]] = app.v.p_y[idx]
+						for l in app.v.p_link[idx] {
+							app.v.l_start_x[l] = app.v.p_x[idx]
+							app.v.l_start_y[l] = app.v.p_y[idx]
 						}
 					}
 				}
@@ -205,60 +205,67 @@ fn on_event(e &gg.Event, mut app App) {
 		.mouse_down {
 			if app.selected_i == -1 {
 				app.mouse_clicked = true
-				// new link or select link
 				p_i := app.v.which_port_is_clicked(e.mouse_x, e.mouse_y)
 				if p_i != -1 {
+					// new link or select link
 					app.selected_variant = .link
-					if app.v.p_link[p_i] != -1 {
-						// select link
-						app.selected_i = app.v.p_link[p_i]
-						app.l_start = app.v.p_input[p_i]
+					// create link
+					app.v.p_link[p_i] << app.v.l_inp.len
+					app.selected_i = app.v.l_inp.len
+					if app.v.p_input[p_i] {
+						// we need an input for the link as the input for the block is the output for the link
+						app.l_start = true
+						app.v.l_out << p_i
+						app.v.l_inp << -1
+						app.v.l_end_x << app.v.p_x[p_i]
+						app.v.l_end_y << app.v.p_y[p_i]
+						app.v.l_start_x << e.mouse_x
+						app.v.l_start_y << e.mouse_y
 					} else {
-						// create link
-						app.v.p_link[p_i] = app.v.l_inp.len
-						app.selected_i = app.v.l_inp.len
-						if app.v.p_input[p_i] {
-							// we need an input for the link as the input for the block is the output for the link
-							app.l_start = true
-							app.v.l_out << p_i
-							app.v.l_inp << -1
-							app.v.l_end_x << app.v.p_x[p_i]
-							app.v.l_end_y << app.v.p_y[p_i]
-							app.v.l_start_x << e.mouse_x
-							app.v.l_start_y << e.mouse_y
-						} else {
-							app.l_start = false
-							app.v.l_inp << p_i
-							app.v.l_out << -1
-							app.v.l_start_x << app.v.p_x[p_i]
-							app.v.l_start_y << app.v.p_y[p_i]
-							app.v.l_end_x << e.mouse_x
-							app.v.l_end_y << e.mouse_y
-						}
+						app.l_start = false
+						app.v.l_inp << p_i
+						app.v.l_out << -1
+						app.v.l_start_x << app.v.p_x[p_i]
+						app.v.l_start_y << app.v.p_y[p_i]
+						app.v.l_end_x << e.mouse_x
+						app.v.l_end_y << e.mouse_y
 					}
 				} else {
 					l_i := app.v.which_link_is_clicked(e.mouse_x, e.mouse_y)
 					if l_i != -1 {
+						// select link
 						app.selected_variant = .link
 						app.selected_i = l_i
 						if e.mouse_x >= app.v.l_start_x[l_i] {
 							if (e.mouse_x - app.v.l_start_x[l_i]) >= (app.v.l_end_x[l_i] - e.mouse_x) {
 								app.l_start = false
-								app.v.p_link[app.v.l_out[l_i]] = -1
+								idx := app.v.p_link[app.v.l_out[l_i]].index(l_i)
+								if idx != -1 {
+									app.v.p_link[app.v.l_out[l_i]].delete(idx)
+								}
 								app.v.l_out[l_i] = -1
 							} else {
 								app.l_start = true
-								app.v.p_link[app.v.l_inp[l_i]] = -1
+								idx := app.v.p_link[app.v.l_inp[l_i]].index(l_i)
+								if idx != -1 {
+									app.v.p_link[app.v.l_inp[l_i]].delete(idx)
+								}
 								app.v.l_inp[l_i] = -1
 							}
 						} else {
 							if (e.mouse_x - app.v.l_end_x[l_i]) <= (app.v.l_start_x[l_i] - e.mouse_x) {
 								app.l_start = false
-								app.v.p_link[app.v.l_out[l_i]] = -1
+								idx := app.v.p_link[app.v.l_out[l_i]].index(l_i)
+								if idx != -1 {
+									app.v.p_link[app.v.l_out[l_i]].delete(idx)
+								}
 								app.v.l_out[l_i] = -1
 							} else {
 								app.l_start = true
-								app.v.p_link[app.v.l_inp[l_i]] = -1
+								idx := app.v.p_link[app.v.l_inp[l_i]].index(l_i)
+								if idx != -1 {
+									app.v.p_link[app.v.l_inp[l_i]].delete(idx)
+								}
 								app.v.l_inp[l_i] = -1
 							}
 						}
@@ -274,22 +281,26 @@ fn on_event(e &gg.Event, mut app App) {
 					}
 				}
 			}
-			eprintln(app.v.l_start_x)
 		}
 		.mouse_up {
 			app.mouse_clicked = false
 			if app.selected_i != -1 {
 				if app.selected_variant == .link {
 					p_i := app.v.which_port_is_clicked(e.mouse_x, e.mouse_y)
-					eprintln(app.l_start)
 					if p_i == -1 || p_i == app.v.l_out[app.selected_i]
 						|| p_i == app.v.l_inp[app.selected_i]
 						|| (p_i != -1 && app.v.p_input[p_i] == app.l_start) {
 						if app.v.l_inp[app.selected_i] != -1 {
-							app.v.p_link[app.v.l_inp[app.selected_i]] = -1
+							idx := app.v.p_link[app.v.l_inp[app.selected_i]].index(app.selected_i)
+							if idx != -1 {
+								app.v.p_link[app.v.l_inp[app.selected_i]].delete(idx)
+							}
 						}
 						if app.v.l_out[app.selected_i] != -1 {
-							app.v.p_link[app.v.l_out[app.selected_i]] = -1
+							idx := app.v.p_link[app.v.l_out[app.selected_i]].index(app.selected_i)
+							if idx != -1 {
+								app.v.p_link[app.v.l_out[app.selected_i]].delete(idx)
+							}
 						}
 						app.v.l_end_x[app.selected_i] = -1.0
 						app.v.l_end_y[app.selected_i] = -1.0
@@ -299,12 +310,12 @@ fn on_event(e &gg.Event, mut app App) {
 						app.v.l_out[app.selected_i] = -1
 					} else {
 						if app.v.p_input[p_i] {
-							app.v.p_link[p_i] = app.selected_i
+							app.v.p_link[p_i] << app.selected_i
 							app.v.l_end_x[app.selected_i] = app.v.p_x[p_i]
 							app.v.l_end_y[app.selected_i] = app.v.p_y[p_i]
 							app.v.l_out[app.selected_i] = p_i
 						} else {
-							app.v.p_link[p_i] = app.selected_i
+							app.v.p_link[p_i] << app.selected_i
 							app.v.l_start_x[app.selected_i] = app.v.p_x[p_i]
 							app.v.l_start_y[app.selected_i] = app.v.p_y[p_i]
 							app.v.l_inp[app.selected_i] = p_i
@@ -317,18 +328,18 @@ fn on_event(e &gg.Event, mut app App) {
 						app.v.p_x[idx] = app.v.b_x[app.selected_i]
 						app.v.p_y[idx] = app.v.b_y[app.selected_i] + i * app.v.input_spacing +
 							app.v.input_spacing / 2
-						if app.v.p_link[idx] != -1 {
-							app.v.l_end_x[app.v.p_link[idx]] = app.v.p_x[idx]
-							app.v.l_end_y[app.v.p_link[idx]] = app.v.p_y[idx]
+						for l in app.v.p_link[idx] {
+							app.v.l_end_x[l] = app.v.p_x[idx]
+							app.v.l_end_y[l] = app.v.p_y[idx]
 						}
 					}
 					for i, idx in app.v.b_outs[app.selected_i] {
 						app.v.p_x[idx] = app.v.b_x[app.selected_i] + app.v.b_w[app.selected_i]
 						app.v.p_y[idx] = app.v.b_y[app.selected_i] + i * app.v.input_spacing +
 							app.v.input_spacing / 2
-						if app.v.p_link[idx] != -1 {
-							app.v.l_start_x[app.v.p_link[idx]] = app.v.p_x[idx]
-							app.v.l_start_y[app.v.p_link[idx]] = app.v.p_y[idx]
+						for l in app.v.p_link[idx] {
+							app.v.l_start_x[l] = app.v.p_x[idx]
+							app.v.l_start_y[l] = app.v.p_y[idx]
 						}
 					}
 				}
@@ -376,7 +387,9 @@ fn on_frame(mut app App) {
 		app.ctx.draw_circle_filled(app.v.p_x[i], app.v.p_y[i], app.v.radius, gg.light_gray)
 		app.ctx.draw_text(int(app.v.p_x[i]), int(app.v.p_y[i]), app.v.p_name[i], cfg)
 	}
-	if p_i != -1 && !(app.selected_variant == .block && app.selected_i != -1) {
+	if p_i != -1 && !(app.selected_variant == .block && app.selected_i != -1)
+		&& !(app.selected_variant == .link && app.selected_i != -1
+		&& app.l_start == app.v.p_input[p_i]) {
 		app.ctx.draw_circle_filled(app.v.p_x[p_i], app.v.p_y[p_i], app.v.radius, gg.dark_gray)
 		app.ctx.draw_text(int(app.v.p_x[p_i]), int(app.v.p_y[p_i]), app.v.p_name[p_i],
 			cfg)
