@@ -1,126 +1,16 @@
 import gg
-
-struct View {
-mut:
-	char_x        f32 = 10.0 // width of a single text character
-	radius        f32 = 10.0
-	input_spacing f32 = 30.0
-	link_detect   f32 = 10.0
-	// blocks
-	b_x    []f32
-	b_y    []f32
-	b_w    []f32
-	b_h    []f32
-	b_inps [][]int  // index of the ports
-	b_outs [][]int  // index of the ports
-	b_name []string // name of the block
-	// ports
-	p_x     []f32
-	p_y     []f32
-	p_input []bool // is input or output
-	p_name  []string
-	p_block []int   // index of block
-	p_link  [][]int // index of link
-	// links
-	l_inp     []int // index of the input port
-	l_out     []int
-	l_start_x []f32
-	l_start_y []f32
-	l_end_x   []f32
-	l_end_y   []f32
-}
-
-fn (v View) which_link_is_clicked(x f32, y f32) int {
-	for l in 0 .. v.l_inp.len {
-		if v.l_start_x[l] >= 0.0 {
-			min_x := f32_min(v.l_start_x[l], v.l_end_x[l])
-			max_x := f32_max(v.l_start_x[l], v.l_end_x[l])
-			min_y, max_y := if min_x == v.l_start_x[l] {
-				v.l_start_y[l], v.l_end_y[l]
-			} else {
-				v.l_end_y[l], v.l_start_y[l]
-			}
-			if x >= min_x - v.link_detect && x < max_x + v.link_detect {
-				slope := (max_y - min_y) / (max_x - min_x)
-				if (x - min_x) * slope >= y - min_y - v.link_detect
-					&& (x - min_x) * slope <= y - min_y + v.link_detect {
-					return l
-				}
-			}
-		}
-	}
-	return -1
-}
-
-fn (mut v View) new_block(name string, x f32, y f32, inputs []string, outputs []string) {
-	i := v.b_x.len
-	v.b_x << x
-	v.b_y << y
-	w := v.input_spacing + v.char_x * name.len
-	v.b_w << w
-	v.b_h << (int_max(inputs.len, outputs.len) + 1) * v.input_spacing
-	v.b_name << name
-	mut inps := []int{}
-	mut outs := []int{}
-	for j, inp in inputs {
-		inps << v.p_x.len
-		v.p_x << x
-		v.p_y << y + j * v.input_spacing + v.input_spacing / 2
-		v.p_input << true
-		v.p_name << inp
-		v.p_block << i
-		v.p_link << [[]]
-	}
-	v.b_inps << inps
-	for j, out in outputs {
-		outs << v.p_x.len
-		v.p_x << x + w
-		v.p_y << y + j * v.input_spacing + v.input_spacing / 2
-		v.p_input << false
-		v.p_name << out
-		v.p_block << i
-		v.p_link << [[]]
-	}
-	v.b_outs << outs
-}
-
-// is the position in the radius
-// returns the first that validates the condition
-fn (v View) which_port_is_clicked(x f32, y f32) int {
-	for i in 0 .. v.p_x.len {
-		dx := v.p_x[i] - x
-		dy := v.p_y[i] - y
-		if dx * dx + dy * dy < v.radius * v.radius {
-			return i
-		}
-	}
-	return -1
-}
-
-fn (v View) which_block_is_clicked(x f32, y f32) int {
-	for i in 0 .. v.b_x.len {
-		if x >= v.b_x[i] && x < v.b_x[i] + v.b_w[i] && y >= v.b_y[i] && y < v.b_y[i] + v.b_h[i] {
-			return i
-		}
-	}
-	return -1
-}
-
-enum Variant {
-	block
-	link
-}
+import pbp_graph as pg
 
 @[heap]
 struct App {
 mut:
 	ctx              &gg.Context = unsafe { nil }
 	selected_i       int         = -1 // selected link
-	selected_variant Variant
+	selected_variant pg.Variant
 	l_start          bool // is the input or the output of the link is selected/controled
 	b_dx             f32  // offset from block_x to mouse click_x
 	b_dy             f32
-	v                View
+	v                pg.View
 	mouse_clicked    bool
 	mouse_x          f32
 	mouse_y          f32
@@ -356,59 +246,8 @@ fn on_frame(mut app App) {
 		vertical_align: .middle
 		size:           int(app.v.char_x) * 2
 	}
-	p_i := app.v.which_port_is_clicked(app.mouse_x, app.mouse_y)
-	l_i := app.v.which_link_is_clicked(app.mouse_x, app.mouse_y)
 	app.ctx.begin()
-	for i in 0 .. app.v.b_x.len {
-		app.ctx.draw_rect_filled(app.v.b_x[i], app.v.b_y[i], app.v.b_w[i], app.v.b_h[i],
-			gg.blue)
-		app.ctx.draw_text(int(app.v.b_x[i] + app.v.b_w[i] / 2), int(app.v.b_y[i] + app.v.b_h[i] / 2),
-			app.v.b_name[i], cfg)
-	}
-	if (app.selected_variant == .block && app.selected_i != -1)
-		|| (p_i == -1 && (l_i == -1 || !(app.selected_variant == .link && app.selected_i != -1))) {
-		if app.selected_i != -1 {
-			app.ctx.draw_rect_filled(app.v.b_x[app.selected_i], app.v.b_y[app.selected_i],
-				app.v.b_w[app.selected_i], app.v.b_h[app.selected_i], gg.dark_blue)
-			app.ctx.draw_text(int(app.v.b_x[app.selected_i] + app.v.b_w[app.selected_i] / 2),
-				int(app.v.b_y[app.selected_i] + app.v.b_h[app.selected_i] / 2), app.v.b_name[app.selected_i],
-				cfg)
-		} else {
-			b_i := app.v.which_block_is_clicked(app.mouse_x, app.mouse_y)
-			if b_i != -1 {
-				app.ctx.draw_rect_filled(app.v.b_x[b_i], app.v.b_y[b_i], app.v.b_w[b_i],
-					app.v.b_h[b_i], gg.dark_blue)
-				app.ctx.draw_text(int(app.v.b_x[b_i] + app.v.b_w[b_i] / 2), int(app.v.b_y[b_i] +
-					app.v.b_h[b_i] / 2), app.v.b_name[b_i], cfg)
-			}
-		}
-	}
-	for i in 0 .. app.v.p_x.len {
-		app.ctx.draw_circle_filled(app.v.p_x[i], app.v.p_y[i], app.v.radius, gg.light_gray)
-		app.ctx.draw_text(int(app.v.p_x[i]), int(app.v.p_y[i]), app.v.p_name[i], cfg)
-	}
-	if p_i != -1 && !(app.selected_variant == .block && app.selected_i != -1)
-		&& !(app.selected_variant == .link && app.selected_i != -1
-		&& app.l_start == app.v.p_input[p_i]) {
-		app.ctx.draw_circle_filled(app.v.p_x[p_i], app.v.p_y[p_i], app.v.radius, gg.dark_gray)
-		app.ctx.draw_text(int(app.v.p_x[p_i]), int(app.v.p_y[p_i]), app.v.p_name[p_i],
-			cfg)
-	}
-	for i in 0 .. app.v.l_start_x.len {
-		if app.v.l_start_x[i] >= 0.0 {
-			app.ctx.draw_line(app.v.l_start_x[i], app.v.l_start_y[i], app.v.l_end_x[i],
-				app.v.l_end_y[i], gg.black)
-		}
-	}
-	if p_i == -1 && (l_i != -1 || (app.selected_variant == .link && app.selected_i != -1))
-		&& !(app.selected_variant == .block && app.selected_i != -1) {
-		if app.selected_i != -1 {
-			app.ctx.draw_line(app.v.l_start_x[app.selected_i], app.v.l_start_y[app.selected_i],
-				app.v.l_end_x[app.selected_i], app.v.l_end_y[app.selected_i], gg.red)
-		} else {
-			app.ctx.draw_line(app.v.l_start_x[l_i], app.v.l_start_y[l_i], app.v.l_end_x[l_i],
-				app.v.l_end_y[l_i], gg.red)
-		}
-	}
+	app.v.draw(app.ctx, app.mouse_x, app.mouse_y, app.selected_i, app.selected_variant,
+		cfg, app.l_start)
 	app.ctx.end()
 }
