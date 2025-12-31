@@ -325,16 +325,16 @@ pub fn (mut v View) events(e &gg.Event) {
 			if !is_none(v.selected_i) {
 				if v.selected_variant == .link {
 					p_i := v.which_port_is_clicked(e.mouse_x, e.mouse_y)
-					if p_i == -1 || p_i == v.l_out[v.selected_i]
+					if is_none(p_i) || p_i == v.l_out[v.selected_i]
 						|| p_i == v.l_inp[v.selected_i]
-						|| (p_i != -1 && v.p_input[p_i] == v.l_start) {
-						if v.l_inp[v.selected_i] != -1 {
+						|| (!is_none(p_i) && v.p_input[p_i] == v.l_start) {
+						if !is_none(v.l_inp[v.selected_i]) {
 							idx := v.p_link[v.l_inp[v.selected_i]].index(v.selected_i)
 							if idx != -1 {
 								v.p_link[v.l_inp[v.selected_i]].delete(idx)
 							}
 						}
-						if v.l_out[v.selected_i] != -1 {
+						if !is_none(v.l_out[v.selected_i]) {
 							idx := v.p_link[v.l_out[v.selected_i]].index(v.selected_i)
 							if idx != -1 {
 								v.p_link[v.l_out[v.selected_i]].delete(idx)
