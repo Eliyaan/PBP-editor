@@ -21,11 +21,12 @@ interface Graph {
 
 pub fn generate_code(g Graph) {
 	mut output := ''
-	// TODO: imports, main code, run fns
+	// TODO: imports, main code
 
-	// fn struct
 	for i, name in g.b_name {
-		output += 'struct ' + name.camel_case() + ' {\n'
+		// fn struct
+		name_camel_case := name.camel_case()
+		output += 'struct ' + name_camel_case + ' {\n'
 		output += '\tf fn ('
 		for j, inp in g.b_inps[i] {
 			output += letters[j] + ' ' + inp
@@ -57,6 +58,41 @@ pub fn generate_code(g Graph) {
 		for j, out in g.b_outs[i] {
 			output += '\t${letters[j]}_out pbp.FanOut[${out}]\n'
 		}
-		output += '}\n'
+		output += '}\n\n'
+
+		// run fn	
+		output += 'fn (mut a ${name_camel_case}) run() {\n'
+		output += '\tif '
+		for j, inp in g.b_inps[i] {
+			output += '!a.${letters[j]}_in.is_empty() '
+			if j != g.b_inps[i].len - 1 {
+				output += '&& '
+			}
+		}
+		output += '{\n'
+		// pop all the inputs from the queues
+		for j, inp in g.b_inps[i] {
+			l := letters[j]
+			output += '\t\t${l}_in := a.${l}_in.pop() or { panic(@LOCATION) }\n'
+		}
+		// get all the outputs
+		output += '\t\t'
+		for j, out in g.b_outs[i] {
+			l := letters[j]
+			output += l + '_out, '
+		}
+		if g.b_outs[i].len >= 1 {
+			output += ' := '
+		}
+		output += 'a.${name}('
+		for j, inp in g.b_inps[i] {
+			output += letters[i] + '_in'
+			if j != g.b_inps[i].len - 1 {
+				output += ', '
+			}
+		}
+		output += ')\t'
+		output += '\t}\n'
+		output += '}\n\n'
 	}
 }
