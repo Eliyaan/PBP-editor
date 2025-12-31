@@ -38,7 +38,7 @@ pub fn generate_code(g Graph) string {
 	output += '\tmut parts := []pbp.Part{}\n'
 	// init the parts (one for each block)
 	for i, name in g.b_name {
-		name_camel_case := name.snake_to_camel()
+		name_camel_case := name.snake_to_camel().capitalize()
 		output += '\tparts << ${name_camel_case}{\n'
 		for j, inp in g.b_inps[i] {
 			output += '\t\t${letters[j]}_in: &inp_${inp}_${name}\n'
@@ -69,7 +69,7 @@ pub fn generate_code(g Graph) string {
 
 	for i, name in g.b_name {
 		// fn struct
-		name_camel_case := name.snake_to_camel()
+		name_camel_case := name.snake_to_camel().capitalize()
 		output += 'struct ' + name_camel_case + ' {\n'
 		output += '\tf fn ('
 		for j, inp in g.b_inps[i] {
@@ -79,7 +79,7 @@ pub fn generate_code(g Graph) string {
 			}
 		}
 		output += ') '
-		if g.b_outs.len > 1 {
+		if g.b_outs[i].len > 1 {
 			output += '('
 		}
 		for j, out in g.b_outs[i] {
@@ -88,7 +88,7 @@ pub fn generate_code(g Graph) string {
 				output += ','
 			}
 		}
-		if g.b_outs.len > 1 {
+		if g.b_outs[i].len > 1 {
 			output += ')'
 		}
 		output += ' = ' + name + '\n'
@@ -97,23 +97,25 @@ pub fn generate_code(g Graph) string {
 		output += '\tready &atom.AtomicVal[bool] = atom.new_atomic(true)\n'
 
 		for j, inp in g.b_inps[i] {
-			output += '\t${letters[j]}_in &pbp.AtomicQueue[${inp}]\n'
+			output += '\t${letters[j]}_in &pbp.AtomicQueue[${g.p_name[inp]}]\n'
 		}
 		for j, out in g.b_outs[i] {
-			output += '\t${letters[j]}_out pbp.FanOut[${out}]\n'
+			output += '\t${letters[j]}_out pbp.FanOut[${g.p_name[out]}]\n'
 		}
 		output += '}\n\n'
 
 		// run fn	
 		output += 'fn (mut a ${name_camel_case}) run() {\n'
-		output += '\tif '
-		for j, _ in g.b_inps[i] {
-			output += '!a.${letters[j]}_in.is_empty() '
-			if j != g.b_inps[i].len - 1 {
-				output += '&& '
+		if g.b_inps[i].len >= 1 {
+			output += '\tif '
+			for j, _ in g.b_inps[i] {
+				output += '!a.${letters[j]}_in.is_empty() '
+				if j != g.b_inps[i].len - 1 {
+					output += '&& '
+				}
 			}
+			output += '{\n'
 		}
-		output += '{\n'
 		// pop all the inputs from the queues
 		for j, _ in g.b_inps[i] {
 			l := letters[j]
@@ -131,9 +133,9 @@ pub fn generate_code(g Graph) string {
 		if g.b_outs[i].len >= 1 {
 			output += ' := '
 		}
-		output += 'a.${name}('
+		output += 'a.f('
 		for j, _ in g.b_inps[i] {
-			output += letters[i] + '_in'
+			output += letters[j] + '_in'
 			if j != g.b_inps[i].len - 1 {
 				output += ', '
 			}
@@ -142,9 +144,11 @@ pub fn generate_code(g Graph) string {
 		// push to the outputs
 		for j, _ in g.b_outs[i] {
 			l := letters[j]
-			output += '\t\to.${l}_out.push(${l}_out)\n'
+			output += '\t\ta.${l}_out.push(${l}_out)\n'
 		}
-		output += '\t}\n'
+		if g.b_inps[i].len >= 1 {
+			output += '\t}\n'
+		}
 		output += '}\n\n'
 	}
 	return output

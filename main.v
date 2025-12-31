@@ -17,10 +17,10 @@ mut:
 fn main() {
 	doc_output := os.execute('v doc .').output.split('\n')
 	fns := doc_output.filter(it#[..2] == 'fn')
-	fn_names := fns.map(it.all_before('('))
+	fn_names := fns.map(it.all_after(' ').all_before('('))
 	inp_strs := fns.map(it.all_after('(').all_before(')'))
 	out_strs := fns.map(it.all_after(')')) // TODO : does not support multiple outputs
-	inps := inp_strs.map(it.split(',').map(it.all_after(' ')))
+	inps := inp_strs.map(it.split(',').map(it.trim_space_left().all_after(' ')))
 	outs := out_strs.map(it.split(','))
 
 	mut app := App{}

@@ -72,23 +72,27 @@ pub fn (mut v View) new_block(name string, x f32, y f32, inputs []string, output
 	mut inps := []int{}
 	mut outs := []int{}
 	for j, inp in inputs {
-		inps << v.p_x.len
-		v.p_x << x
-		v.p_y << y + j * v.input_spacing + v.input_spacing / 2
-		v.p_input << true
-		v.p_name << inp
-		v.p_block << i
-		v.p_link << [[]]
+		if inp != '' {
+			inps << v.p_x.len
+			v.p_x << x
+			v.p_y << y + j * v.input_spacing + v.input_spacing / 2
+			v.p_input << true
+			v.p_name << inp
+			v.p_block << i
+			v.p_link << [[]]
+		}
 	}
 	v.b_inps << inps
 	for j, out in outputs {
-		outs << v.p_x.len
-		v.p_x << x + w
-		v.p_y << y + j * v.input_spacing + v.input_spacing / 2
-		v.p_input << false
-		v.p_name << out
-		v.p_block << i
-		v.p_link << [[]]
+		if out != '' {
+			outs << v.p_x.len
+			v.p_x << x + w
+			v.p_y << y + j * v.input_spacing + v.input_spacing / 2
+			v.p_input << false
+			v.p_name << out
+			v.p_block << i
+			v.p_link << [[]]
+		}
 	}
 	v.b_outs << outs
 }
