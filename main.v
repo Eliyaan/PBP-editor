@@ -1,6 +1,7 @@
 import gg
 import pbp_graph as pg
 import pbp_g2c as g2c
+import os
 
 // TODO: add a way to duplicate a block -> change g2c because the structs will have the same name
 
@@ -14,7 +15,18 @@ mut:
 }
 
 fn main() {
+	doc_output := os.execute('v doc .').output.split('\n')
+	fns := doc_output.filter(it#[..2] == 'fn')
+	fn_names := fns.map(it.all_before('('))
+	inp_strs := fns.map(it.all_after('(').all_before(')'))
+	out_strs := fns.map(it.all_after(')')) // TODO : does not support multiple outputs
+	inps := inp_strs.map(it.split(',').map(it.all_after(' ')))
+	outs := out_strs.map(it.split(','))
+
 	mut app := App{}
+	for i, name in fn_names {
+		app.v.new_block(name, 1.0, 1.0, inps[i], outs[i])
+	}
 	app.ctx = gg.new_context(
 		user_data:    &app
 		event_fn:     on_event
@@ -22,9 +34,6 @@ fn main() {
 		window_title: 'PBP editor'
 		bg_color:     gg.white
 	)
-
-	app.v.new_block('hello', 32.0, 54.0, ['int', 'f64'], ['[]f32', 'string'])
-	app.v.new_block('very long string', 320.0, 154.0, ['string'], ['[]f32', 'string', 'int'])
 
 	app.ctx.run()
 	println(g2c.generate_code(app.v))
