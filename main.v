@@ -1,6 +1,8 @@
 import gg
 import pbp_graph as pg
 
+// TODO: add a way to duplicate a block -> change g2c because the structs will have the same name
+
 @[heap]
 struct App {
 mut:
